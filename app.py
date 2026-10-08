@@ -75,7 +75,7 @@ def parse_section(section_text, source_file):
 
         labels = list(label_re.finditer(block))
         if labels:
-            fields["Name"] = clean_value(block[:labels.start()])
+            fields["Name"] = clean_value(block[:labels[0].start()]) # Fixed the bug here!
         else:
             fields["Name"] = clean_value(block)
 
