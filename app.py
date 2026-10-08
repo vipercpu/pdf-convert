@@ -47,17 +47,35 @@ def parse_section(section_text, source_file):
     )
 
     rows = []
+    # Clean programmatic counter that acts as our ultimate source of truth
+    expected_counter = 1 
+
     for idx, match in enumerate(starts):
         block_end = starts[idx + 1].start() if idx + 1 < len(starts) else len(section_text)
         block = section_text[match.end():block_end]
 
         fields = {key: "" for key in FIELDS}
-        fields["No"] = (match.group(1) + match.group(2)) if match.group(1) else match.group(2)
+        
+        # Extract the raw string digits found by regex
+        raw_no = (match.group(1) + match.group(2)) if match.group(1) else match.group(2)
+        
+        # Fix conjoined page-number artifacts (e.g., '1426' when expected counter is around 26)
+        if len(raw_no) >= 3:
+            # If the number ends with our expected sequence value, isolate it
+            expected_str = str(expected_counter)
+            if raw_no.endswith(expected_str):
+                fields["No"] = expected_str
+            else:
+                # If it's a completely scrambled artifact, trust our sequential counter
+                fields["No"] = expected_str
+        else:
+            fields["No"] = raw_no
+
         fields["Source File"] = source_file
 
         labels = list(label_re.finditer(block))
         if labels:
-            fields["Name"] = clean_value(block[:labels[0].start()])
+            fields["Name"] = clean_value(block[:labels.start()])
         else:
             fields["Name"] = clean_value(block)
 
@@ -86,8 +104,10 @@ def parse_section(section_text, source_file):
             fields[key] = clean_value(fields[key])
 
         rows.append(fields)
+        expected_counter += 1  # Increment to track what the next row number should mathematically look like
 
     return rows
+
 
 def parse_streamlit_pdf(uploaded_file):
     parts = []
